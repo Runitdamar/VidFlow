@@ -10,18 +10,19 @@ export default async function handler(req, res) {
   }
 
   const fileId = match[2];
+  const CDN = 'https://da08ctfrofx1b.cloudfront.net';
 
-  // All known CDN/API patterns from APK reverse engineering
+  // URL patterns discovered from APK reverse engineering
+  // np = non-premium, pp = premium, dedo/lelo = quality variants
   const attempts = [
-    // CloudFront CDN (primary video delivery)
-    `https://da08ctfrofx1b.cloudfront.net/${fileId}`,
-    `https://da08ctfrofx1b.cloudfront.net/uploads/${fileId}`,
-    `https://da08ctfrofx1b.cloudfront.net/videos/${fileId}`,
-    `https://da08ctfrofx1b.cloudfront.net/files/${fileId}`,
-    // DiskWala CDN
-    `https://cdns3in.diskwala.com/${fileId}`,
-    `https://cdns3in.diskwala.com/uploads/${fileId}`,
-    `https://cdns3in.diskwala.com/videos/${fileId}`,
+    `${CDN}/appuser/np_dedo/v2/${fileId}`,
+    `${CDN}/appuser/np_lelo/v2/${fileId}`,
+    `${CDN}/appuser/pp_dedo/v2/${fileId}`,
+    `${CDN}/appuser/pp_lelo/v2/${fileId}`,
+    `${CDN}/appuser/creator_files/v2/${fileId}`,
+    `${CDN}/appuser/all_ghusja/v2/${fileId}`,
+    `${CDN}/appuser/playlist_items/v2/${fileId}`,
+    `${CDN}/${fileId}`,
   ];
 
   const headers = {
@@ -30,30 +31,30 @@ export default async function handler(req, res) {
     'Origin': 'https://www.diskwala.com',
   };
 
+  const results = [];
+
   for (const cdnUrl of attempts) {
     try {
-      const r = await fetch(cdnUrl, { method: 'HEAD', headers });
+      const r = await fetch(cdnUrl, { method: 'HEAD', headers, redirect: 'follow' });
+      results.push({ url: cdnUrl, status: r.status, ct: r.headers.get('content-type') || '' });
+      
       if (r.ok || r.status === 206) {
-        const ct = r.headers.get('content-type') || '';
-        if (ct.includes('video') || ct.includes('octet') || ct.includes('mp4')) {
-          return res.json({ success: true, videoUrl: cdnUrl, filename: `${fileId}.mp4` });
-        }
-      }
-      // Even a 403 means the file EXISTS on CDN — return it and try to play
-      if (r.status === 403) {
         return res.json({ 
-          success: false, 
-          error: 'This file requires login to access. DiskWala CDN returned 403 (Forbidden). The file exists but is protected.',
-          debug: `CDN URL tried: ${cdnUrl}`
+          success: true, 
+          videoUrl: cdnUrl, 
+          filename: `diskwala-${fileId.substring(0,8)}.mp4` 
         });
       }
-    } catch (e) { continue; }
+    } catch (e) {
+      results.push({ url: cdnUrl, status: 'error', ct: e.message });
+    }
   }
 
+  // Return debug info to help us narrow down
   return res.json({
     success: false,
-    error: 'DiskWala requires login to access files. Their API needs a Firebase auth token which is only available after signing in through their app.',
-    debug: `File ID: ${fileId}`
+    error: 'Could not find video. See debug for status codes.',
+    debug: results,
   });
 }
 
