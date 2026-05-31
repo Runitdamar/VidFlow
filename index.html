@@ -251,7 +251,7 @@
           resultCard.classList.remove('hidden');
           resultCard.classList.add('up');
         } else {
-          showError(data.error || 'Could not extract video from this link.');
+          showError((data.error || '') + ' | ' + JSON.stringify(data.debug));
         }
       } catch (err) {
         showError('Network error. Please try again.');
