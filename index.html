@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiskWala Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #0a0a0f;
+      font-family: 'Syne', sans-serif;
+      color: #f0ede8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 80px;
+      overflow-x: hidden;
+    }
+
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(130px); pointer-events: none; z-index: 0;
+    }
+
+    .inner { position: relative; z-index: 1; width: 100%; max-width: 640px; }
+
+    /* Header */
+    .header { text-align: center; padding: 60px 0 44px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2);
+      border-radius: 100px; padding: 6px 14px; margin-bottom: 22px;
+    }
+    .dot { width: 7px; height: 7px; background: #ff6b35; border-radius: 50%; animation: pulse 1.4s ease infinite; }
+    .badge-text { font-family: 'Space Mono', monospace; font-size: 10px; color: rgba(240,237,232,0.55); letter-spacing: 0.1em; text-transform: uppercase; }
+    h1 { font-size: clamp(38px, 10vw, 66px); font-weight: 800; line-height: 1.0; letter-spacing: -0.03em; }
+    h1 span { color: #ff6b35; }
+    .subtitle { margin-top: 12px; color: rgba(240,237,232,0.38); font-size: 14px; line-height: 1.75; }
+
+    /* Card */
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px; padding: 22px; margin-bottom: 14px;
+    }
+
+    .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    input {
+      flex: 1; min-width: 0;
+      background: rgba(255,255,255,0.05);
+      border: 1.5px solid rgba(255,255,255,0.09);
+      border-radius: 12px; color: #f0ede8;
+      font-family: 'Space Mono', monospace; font-size: 12px;
+      padding: 14px 16px; outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    input:focus { border-color: #ff6b35; background: rgba(255,107,53,0.04); }
+    input::placeholder { color: rgba(240,237,232,0.22); }
+
+    .btn-main {
+      background: #ff6b35; border: none; border-radius: 12px;
+      color: #0a0a0f; cursor: pointer;
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+      letter-spacing: 0.04em; padding: 14px 22px;
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+      display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    }
+    .btn-main:hover { background: #ff8555; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+    .btn-main:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .steps { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .step { display: flex; align-items: center; gap: 12px; }
+    .step-num {
+      width: 24px; height: 24px; flex-shrink: 0;
+      background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.22);
+      border-radius: 7px; display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Mono', monospace; font-size: 10px; color: #ff6b35;
+    }
+    .step-text { font-size: 13px; color: rgba(240,237,232,0.4); }
+
+    /* Error */
+    .error-card {
+      background: rgba(255,70,70,0.05); border: 1px solid rgba(255,70,70,0.2);
+      border-radius: 16px; padding: 18px; margin-bottom: 14px;
+      display: flex; align-items: flex-start; gap: 12;
+    }
+    .error-title { font-weight: 700; font-size: 14px; color: #ff5050; margin-bottom: 4px; }
+    .error-msg { font-size: 12px; color: rgba(240,237,232,0.38); line-height: 1.6; }
+
+    /* Tags */
+    .top-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tag {
+      background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.25);
+      border-radius: 6px; color: #ff6b35;
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: 0.07em; padding: 3px 9px; text-transform: uppercase;
+    }
+    .tag-green { background: rgba(100,210,100,0.08); border-color: rgba(100,210,100,0.2); color: #6dd17a; }
+
+    /* Video */
+    video { width: 100%; border-radius: 12px; background: #000; max-height: 400px; display: block; }
+
+    /* Action buttons */
+    .actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-dl {
+      flex: 1;
+      background: rgba(255,107,53,0.1); border: 1.5px solid rgba(255,107,53,0.32);
+      border-radius: 12px; color: #ff6b35; cursor: pointer;
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+      padding: 13px 18px; display: flex; align-items: center; justify-content: center; gap: 7px;
+      transition: background 0.15s, transform 0.15s;
+    }
+    .btn-dl:hover { background: rgba(255,107,53,0.18); transform: translateY(-1px); }
+    .btn-ghost {
+      flex: 1;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; color: rgba(240,237,232,0.65); cursor: pointer;
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+      padding: 13px 18px; transition: background 0.15s, transform 0.15s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+
+    .reset-btn {
+      margin-left: auto;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 9px; color: rgba(240,237,232,0.5); cursor: pointer;
+      font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600;
+      padding: 7px 13px; transition: background 0.15s;
+    }
+    .reset-btn:hover { background: rgba(255,255,255,0.1); }
+
+    .footer { text-align: center; margin-top: 52px; font-family: 'Space Mono', monospace; font-size: 10px; color: rgba(240,237,232,0.14); line-height: 2.2; }
+
+    .spinner {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(10,10,15,0.25); border-top-color: #0a0a0f;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+
+    .hidden { display: none !important; }
+    .up { animation: up 0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.7)} }
+    @keyframes up { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+
+  <div class="orb" style="width:480px;height:480px;background:rgba(255,107,53,0.07);top:-180px;right:-120px"></div>
+  <div class="orb" style="width:360px;height:360px;background:rgba(90,40,200,0.06);bottom:60px;left:-80px"></div>
+
+  <div class="inner">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="badge"><div class="dot"></div><span class="badge-text">No App Required</span></div>
+      <h1>DiskWala<br><span>Player</span></h1>
+      <p class="subtitle">Paste any DiskWala share link.<br>Stream it here or download it — free, forever.</p>
+    </div>
+
+    <!-- Input -->
+    <div class="card">
+      <div class="input-row">
+        <input id="linkInput" type="url" placeholder="https://diskwala.com/s/xxxxxxxx" />
+        <button class="btn-main" id="fetchBtn" onclick="fetchVideo()">
+          Get Video →
+        </button>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><span class="step-text">Open DiskWala and find your video</span></div>
+        <div class="step"><div class="step-num">2</div><span class="step-text">Tap Share → Copy Link</span></div>
+        <div class="step"><div class="step-num">3</div><span class="step-text">Paste above and hit Get Video</span></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="errorCard" class="error-card hidden">
+      <span style="font-size:20px;flex-shrink:0">⚠️</span>
+      <div>
+        <div class="error-title">Couldn't fetch video</div>
+        <div class="error-msg" id="errorMsg"></div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="resultCard" class="hidden">
+      <div class="top-bar">
+        <span class="tag">✓ Video Found</span>
+        <span class="tag tag-green">Ready to Play</span>
+        <button class="reset-btn" onclick="reset()">← New Link</button>
+      </div>
+      <div class="card" style="padding:12px">
+        <video id="videoPlayer" controls playsinline></video>
+      </div>
+      <div class="actions">
+        <button class="btn-dl" onclick="downloadVideo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download MP4
+        </button>
+        <button class="btn-ghost" id="copyBtn" onclick="copyUrl()">Copy Direct URL</button>
+      </div>
+    </div>
+
+    <div class="footer">FOR PERSONAL USE ONLY · RESPECT CONTENT CREATOR RIGHTS</div>
+  </div>
+
+  <script>
+    let currentVideoUrl = '';
+    let currentFilename = 'diskwala-video.mp4';
+
+    const linkInput = document.getElementById('linkInput');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const errorCard = document.getElementById('errorCard');
+    const errorMsg = document.getElementById('errorMsg');
+    const resultCard = document.getElementById('resultCard');
+    const videoPlayer = document.getElementById('videoPlayer');
+
+    linkInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchVideo(); });
+
+    async function fetchVideo() {
+      const link = linkInput.value.trim();
+      if (!link) return;
+
+      // Reset UI
+      errorCard.classList.add('hidden');
+      resultCard.classList.add('hidden');
+
+      // Loading state
+      fetchBtn.disabled = true;
+      fetchBtn.innerHTML = '<div class="spinner"></div> Fetching…';
+
+      try {
+        const res = await fetch('/api/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: link }),
+        });
+        const data = await res.json();
+
+        if (data.success && data.videoUrl) {
+          currentVideoUrl = data.videoUrl;
+          currentFilename = data.filename || 'diskwala-video.mp4';
+          // Use proxy to stream
+          videoPlayer.src = `/api/proxy?url=${encodeURIComponent(data.videoUrl)}`;
+          resultCard.classList.remove('hidden');
+          resultCard.classList.add('up');
+        } else {
+          showError(data.error || 'Could not extract video from this link.');
+        }
+      } catch (err) {
+        showError('Network error. Please try again.');
+      }
+
+      fetchBtn.disabled = false;
+      fetchBtn.innerHTML = 'Get Video →';
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorCard.classList.remove('hidden');
+      errorCard.classList.add('up');
+    }
+
+    function downloadVideo() {
+      const a = document.createElement('a');
+      a.href = `/api/proxy?url=${encodeURIComponent(currentVideoUrl)}&download=1`;
+      a.download = currentFilename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function copyUrl() {
+      navigator.clipboard.writeText(currentVideoUrl);
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = 'Copy Direct URL', 2000);
+    }
+
+    function reset() {
+      linkInput.value = '';
+      resultCard.classList.add('hidden');
+      errorCard.classList.add('hidden');
+      videoPlayer.src = '';
+      currentVideoUrl = '';
+    }
+  </script>
+</body>
+</html>
